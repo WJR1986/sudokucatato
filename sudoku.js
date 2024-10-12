@@ -1,4 +1,12 @@
 let solutionGrid = [];
+let completedPuzzles = 0; // To count completed puzzles
+
+// Load completed puzzles count from local storage
+function loadCompletedCount() {
+  const count = localStorage.getItem("completedCount");
+  completedPuzzles = count ? parseInt(count) : 0;
+  document.getElementById("completedCount").innerText = completedPuzzles;
+}
 
 // Create an empty 9x9 grid
 function createEmptyGrid() {
@@ -82,6 +90,7 @@ function generateSudoku(difficulty) {
   removeNumbers(grid, difficulty);
   displayGrid(grid, true);
   document.getElementById("message").innerHTML = ""; // Clear any previous message
+  saveProgress(grid); // Save the generated puzzle to local storage
 }
 
 // Check if the solution is correct
@@ -107,6 +116,9 @@ function checkSudoku() {
     messageElement.innerHTML =
       "Congratulations! You have solved the Sudoku correctly!";
     messageElement.style.color = "green";
+    completedPuzzles++; // Increment completed puzzles count
+    localStorage.setItem("completedCount", completedPuzzles); // Save updated count
+    document.getElementById("completedCount").innerText = completedPuzzles; // Update display
   } else {
     messageElement.innerHTML = "Some numbers are incorrect. Please try again!";
     messageElement.style.color = "red";
@@ -149,3 +161,23 @@ function addRealTimeValidation() {
     });
   }
 }
+
+// Function to save the current puzzle to local storage
+function saveProgress(grid) {
+  localStorage.setItem("currentPuzzle", JSON.stringify(grid));
+}
+
+// Function to load saved puzzle from local storage
+function loadProgress() {
+  const savedPuzzle = localStorage.getItem("currentPuzzle");
+  if (savedPuzzle) {
+    const grid = JSON.parse(savedPuzzle);
+    displayGrid(grid, true); // Display the saved grid
+    document.getElementById("message").innerHTML = ""; // Clear any previous message
+  } else {
+    alert("No saved progress found!");
+  }
+}
+
+// Load completed puzzles count on page load
+loadCompletedCount();
