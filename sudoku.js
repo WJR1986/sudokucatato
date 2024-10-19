@@ -47,16 +47,14 @@ function solveSudoku(grid) {
 
 // Remove numbers to create the puzzle based on difficulty
 function removeNumbers(grid, difficulty) {
-  let attempts = difficulty === "easy" ? 40 : difficulty === "medium" ? 50 : 60;
+  let attempts = { easy: 40, medium: 50, hard: 60 }[difficulty];
   while (attempts > 0) {
     let row = Math.floor(Math.random() * 9);
     let col = Math.floor(Math.random() * 9);
-    while (grid[row][col] === 0) {
-      row = Math.floor(Math.random() * 9);
-      col = Math.floor(Math.random() * 9);
+    if (grid[row][col] !== 0) {
+      grid[row][col] = 0;
+      attempts--;
     }
-    grid[row][col] = 0;
-    attempts--;
   }
 }
 
@@ -79,7 +77,46 @@ function displayGrid(grid, editable = false) {
     }
   }
 
-  addRealTimeValidation(); // Add real-time validation
+  addRealTimeValidation(); // Add real-time validation after grid is created
+}
+// Highlight the 3x3 subgrid of a given cell
+function highlightSubgrid(row, col) {
+  console.log(`Highlighting subgrid for cell at row ${row}, col ${col}`);
+  removeSubgridHighlight(); // Remove any existing highlight
+  const subgridCells = getSubgridCells(row, col); // Get the cells of the subgrid
+  console.log(`Subgrid cells:`, subgridCells); // Log the cells to check
+  subgridCells.forEach((cell) => {
+    console.log("Applying highlight to cell:", cell); // Log each cell being highlighted
+    cell.classList.add("subgrid-highlight"); // Add the highlight class
+  });
+}
+
+// Function to remove subgrid highlight from all cells
+function removeSubgridHighlight() {
+  console.log("Removing subgrid highlight");
+  document.querySelectorAll("input").forEach((cell) => {
+    cell.classList.remove("subgrid-highlight"); // Remove highlight from all cells
+  });
+}
+
+function getSubgridCells(row, col) {
+  const startRow = Math.floor(row / 3) * 3; // Find the starting row of the subgrid
+  const startCol = Math.floor(col / 3) * 3; // Find the starting column of the subgrid
+  const subgridCells = [];
+
+  for (let i = startRow; i < startRow + 3; i++) {
+    for (let j = startCol; j < startCol + 3; j++) {
+      const cell = document.querySelector(
+        `input[data-row="${i}"][data-col="${j}"]`
+      );
+      if (cell) {
+        subgridCells.push(cell);
+      }
+    }
+  }
+
+  console.log(subgridCells); // Check if subgrid cells are selected correctly
+  return subgridCells;
 }
 
 // Generate the Sudoku puzzle
@@ -95,33 +132,32 @@ function generateSudoku(difficulty) {
 
 // Check if the solution is correct
 function checkSudoku() {
-  const inputs = document.getElementsByTagName("input");
+  const inputs = document.querySelectorAll("input");
   let isCorrect = true;
 
-  for (let i = 0; i < inputs.length; i++) {
-    const row = inputs[i].dataset.row;
-    const col = inputs[i].dataset.col;
-    const userValue = inputs[i].value ? parseInt(inputs[i].value) : 0;
+  inputs.forEach((input) => {
+    const row = input.dataset.row;
+    const col = input.dataset.col;
+    const userValue = input.value ? parseInt(input.value) : 0;
 
     if (userValue !== solutionGrid[row][col]) {
-      inputs[i].style.backgroundColor = "#f8d7da"; // Mark incorrect cells in red
+      input.style.backgroundColor = "#f8d7da"; // Mark incorrect cells in red
       isCorrect = false;
     } else {
-      inputs[i].style.backgroundColor = "#d4edda"; // Mark correct cells in green
+      input.style.backgroundColor = "#d4edda"; // Mark correct cells in green
     }
-  }
+  });
 
   const messageElement = document.getElementById("message");
+  messageElement.innerHTML = isCorrect
+    ? "Congratulations! You have solved the Sudoku correctly!"
+    : "Some numbers are incorrect. Please try again!";
+  messageElement.style.color = isCorrect ? "green" : "red";
+
   if (isCorrect) {
-    messageElement.innerHTML =
-      "Congratulations! You have solved the Sudoku correctly!";
-    messageElement.style.color = "green";
-    completedPuzzles++; // Increment completed puzzles count
+    completedPuzzles++;
     localStorage.setItem("completedCount", completedPuzzles); // Save updated count
-    document.getElementById("completedCount").innerText = completedPuzzles; // Update display
-  } else {
-    messageElement.innerHTML = "Some numbers are incorrect. Please try again!";
-    messageElement.style.color = "red";
+    document.getElementById("completedCount").innerText = completedPuzzles;
   }
 }
 
@@ -132,52 +168,76 @@ function printSudoku() {
 
 // Function to reset the grid (clear user inputs)
 function resetSudoku() {
-  const inputs = document.getElementsByTagName("input");
-  for (let i = 0; i < inputs.length; i++) {
-    if (!inputs[i].readOnly) {
-      inputs[i].value = ""; // Clear only the user inputs
-      inputs[i].style.backgroundColor = "white"; // Reset background color
-    }
-  }
-  document.getElementById("message").innerHTML = ""; // Clear any message
+  const inputs = document.querySelectorAll("input:not([readonly])");
+  inputs.forEach((input) => {
+    input.value = "";
+    input.style.backgroundColor = "white";
+  });
+  document.getElementById("message").innerHTML = "";
 }
 
-// Function to check real-time mistakes
 function addRealTimeValidation() {
-  const inputs = document.getElementsByTagName("input");
+  const inputs = document.querySelectorAll("input");
 
-  for (let i = 0; i < inputs.length; i++) {
-    inputs[i].addEventListener("input", function () {
-      const row = inputs[i].dataset.row;
-      const col = inputs[i].dataset.col;
-      const userValue = inputs[i].value ? parseInt(inputs[i].value) : 0;
-
-      // Compare user input with the correct solution
-      if (userValue !== 0 && userValue !== solutionGrid[row][col]) {
-        inputs[i].style.backgroundColor = "#f8d7da"; // Mark incorrect cells in red
-      } else {
-        inputs[i].style.backgroundColor = "white"; // Reset background if correct
-      }
+  inputs.forEach((input) => {
+    input.addEventListener("focus", () => {
+      const row = input.dataset.row;
+      const col = input.dataset.col;
+      console.log(`Focused on row: ${row}, col: ${col}`); // Log the focus event
+      highlightSubgrid(row, col); // Highlight the subgrid when the input is focused
     });
-  }
+    input.addEventListener("blur", () => {
+      console.log("Removing subgrid highlight"); // Log the blur event
+      removeSubgridHighlight(); // Remove highlight when focus is lost
+    });
+  });
 }
 
-// Function to save the current puzzle to local storage
+// Save the current puzzle to local storage
 function saveProgress(grid) {
   localStorage.setItem("currentPuzzle", JSON.stringify(grid));
 }
 
-// Function to load saved puzzle from local storage
+// Load saved puzzle from local storage
 function loadProgress() {
   const savedPuzzle = localStorage.getItem("currentPuzzle");
   if (savedPuzzle) {
     const grid = JSON.parse(savedPuzzle);
     displayGrid(grid, true); // Display the saved grid
-    document.getElementById("message").innerHTML = ""; // Clear any previous message
   } else {
     alert("No saved progress found!");
   }
 }
+
+// Add event listeners for buttons
+document.addEventListener("DOMContentLoaded", function () {
+  // Event listeners for difficulty buttons
+  document.getElementById("generateEasy").addEventListener("click", () => {
+    generateSudoku("easy");
+  });
+
+  document.getElementById("generateMedium").addEventListener("click", () => {
+    generateSudoku("medium");
+  });
+
+  document.getElementById("generateHard").addEventListener("click", () => {
+    generateSudoku("hard");
+  });
+
+  // Event listener for checking solution
+  document
+    .getElementById("checkSolution")
+    .addEventListener("click", checkSudoku);
+
+  // Event listener for resetting the grid
+  document.getElementById("resetGrid").addEventListener("click", resetSudoku);
+
+  // Event listener for printing the puzzle
+  document.getElementById("printPuzzle").addEventListener("click", printSudoku);
+
+  // Load completed puzzles count on page load
+  loadCompletedCount();
+});
 
 // Load completed puzzles count on page load
 loadCompletedCount();
